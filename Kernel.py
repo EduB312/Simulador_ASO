@@ -158,7 +158,7 @@ class Kernel:
             self.system_time_counter += 1
             self.quantum_actual += 1
 
-            # Desconta tiempo al proceso actual en ejecucion
+            # Descuenta tiempo al proceso actual en ejecucion
             if self.cpu.proceso_actual:
                 self.cpu.proceso_actual.tiempo_restante -= 1
 
@@ -178,24 +178,110 @@ class Kernel:
         # Evaluación según el algoritmo seleccionado en la interfaz
         if self.algoritmo_planificacion == "FCFS":
             self._planificar_fcfs()
+        elif self.algoritmo_planificacion == "SJF":
+            self._planificar_sjf()
+        elif self.algoritmo_planificacion == "Round Robin":
+            self._planificar_round_robin()
+        elif self.algoritmo_planificacion == "Por Prioridad":
+            self._planificar_prioridad()
+        elif self.algoritmo_planificacion == "Por Colas Multiples":
+            self._planificar_colas_multiples()
+        elif self.algoritmo_planificacion == "Planificacion Garantizada":
+            self._planificar_garantizada()
+        elif self.algoritmo_planificacion == "Planificacion A DOS NIVELeS":
+            self._planificar_dos_niveles()
 
-
-#fsfc
     def _planificar_fcfs(self):
-        # Es no apropiativo: si la CPU ya tiene un proceso, no se interrumpe
         if self.cpu.proceso_actual is not None:
             return
-
         listos = [p for p in self.procesos if p.estado == "Ready"]
         if listos:
-            # Ordena por el orden estricto de llegada
             listos.sort(key=lambda p: p.llegada)
             siguiente = listos[0]
-
             siguiente.estado = "Running"
             self.cpu.proceso_actual = siguiente
             self.cpu.ocupado = True
 
+    def _planificar_sjf(self):
+        if self.cpu.proceso_actual is not None:
+            return
+        listos = [p for p in self.procesos if p.estado == "Ready"]
+        if listos:
+            listos.sort(key=lambda p: p.tiempo_restante)
+            siguiente = listos[0]
+            siguiente.estado = "Running"
+            self.cpu.proceso_actual = siguiente
+            self.cpu.ocupado = True
+
+    def _planificar_round_robin(self):
+        listos = [p for p in self.procesos if p.estado == "Ready"]
+        if self.cpu.proceso_actual is not None:
+            if self.quantum_actual >= self.quantum:
+                proceso_actual = self.cpu.proceso_actual
+                proceso_actual.estado = "Ready"
+                self.cpu.proceso_actual = None
+                self.cpu.ocupado = False
+                self.quantum_actual = 0
+            else:
+                return
+
+        if self.cpu.proceso_actual is None and listos:
+            listos.sort(key=lambda p: p.llegada)
+            siguiente = listos[0]
+            siguiente.estado = "Running"
+            self.cpu.proceso_actual = siguiente
+            self.cpu.ocupado = True
+            self.quantum_actual = 0
+
+    def _planificar_prioridad(self):
+        if self.cpu.proceso_actual is not None:
+            return
+        listos = [p for p in self.procesos if p.estado == "Ready"]
+        if listos:
+            listos.sort(key=lambda p: p.prioridad)
+            siguiente = listos[0]
+            siguiente.estado = "Running"
+            self.cpu.proceso_actual = siguiente
+            self.cpu.ocupado = True
+
+    def _planificar_colas_multiples(self):
+        if self.cpu.proceso_actual is not None:
+            return
+        listos = [p for p in self.procesos if p.estado == "Ready"]
+        if listos:
+            listos.sort(key=lambda p: (p.prioridad, p.llegada))
+            siguiente = listos[0]
+            siguiente.estado = "Running"
+            self.cpu.proceso_actual = siguiente
+            self.cpu.ocupado = True
+
+    def _planificar_garantizada(self):
+        if self.cpu.proceso_actual is not None:
+            return
+        listos = [p for p in self.procesos if p.estado == "Ready"]
+        if listos:
+            listos.sort(key=lambda p: (p.tiempo_total - p.tiempo_restante))
+            siguiente = listos[0]
+            siguiente.estado = "Running"
+            self.cpu.proceso_actual = siguiente
+            self.cpu.ocupado = True
+
+    def _planificar_dos_niveles(self):
+        if self.cpu.proceso_actual is not None:
+            return
+        listos = [p for p in self.procesos if p.estado == "Ready"]
+        if listos:
+            sistema = [p for p in listos if p.prioridad <= 10]
+            if sistema:
+                sistema.sort(key=lambda p: p.llegada)
+                siguiente = sistema[0]
+            else:
+                listos.sort(key=lambda p: p.llegada)
+                siguiente = listos[0]
+
+            siguiente.estado = "Running"
+            self.cpu.proceso_actual = siguiente
+            self.cpu.ocupado = True
 
     def actualizar_procesos(self):
         if not self.esta_ejecutando():

@@ -508,6 +508,7 @@ class OSSimulatorWindow(QMainWindow):
     def setup_process_tab(self):
         process_tab = QWidget()
         layout = QVBoxLayout(process_tab)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         process_frame = OSModuleFrame("Procesos Actuales", "task-due")
 
@@ -525,6 +526,9 @@ class OSSimulatorWindow(QMainWindow):
             QHeaderView.ResizeMode.Stretch
         )
         self.process_table.setStyleSheet(TABLE_STYLE)
+        
+        # Forzar política de expansión para que ocupe todo el alto disponible sin descuadrarse
+        self.process_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         process_frame.addWidget(self.process_table)
 
