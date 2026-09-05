@@ -109,17 +109,19 @@ QComboBox {
     background-color: #111827;
     color: #60A5FA;
     font-weight: bold;
-    border: 1px solid #334155;
-    border-radius: 6px;
-    padding: 4px 8px;
+    border: 2px solid #3B82F6;
+    border-radius: 8px;
+    padding: 6px 12px;
+    min-width: 160px;
 }
 QComboBox:hover {
-    border: 1px solid #60A5FA;
+    border: 2px solid #60A5FA;
+    background-color: #1F2937;
 }
 QComboBox::drop-down {
     subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 20px;
+    width: 25px;
     border-left-width: 0px;
 }
 QComboBox QAbstractItemView {
@@ -127,7 +129,8 @@ QComboBox QAbstractItemView {
     color: #E5E7EB;
     selection-background-color: #2563EB;
     selection-color: #FFFFFF;
-    border: 1px solid #334155;
+    border: 1px solid #3B82F6;
+    padding: 4px;
 }
 """
 
@@ -138,6 +141,7 @@ class OSModuleFrame(QFrame):
         super().__init__()
 
         self.setStyleSheet(PANEL_STYLE)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(8, 6, 8, 8)
@@ -329,6 +333,11 @@ class OSSimulatorWindow(QMainWindow):
         self.setup_central_modules()
         self.setup_lower_section()
 
+        # Proporciones equilibradas y estables para evitar desplazamientos
+        self.main_layout.setStretch(0, 0)
+        self.main_layout.setStretch(1, 4)
+        self.main_layout.setStretch(2, 2)
+
         self.sim_timer = QTimer(self)
         self.sim_timer.timeout.connect(self.update_sim_data)
         self.sim_timer.start(1000)
@@ -473,6 +482,7 @@ class OSSimulatorWindow(QMainWindow):
     def setup_cpu_tab(self):
         cpu_tab = QWidget()
         layout = QVBoxLayout(cpu_tab)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         cpu_frame = OSModuleFrame("CPU [ NÚCLEO 1 ]", "processor")
 
@@ -501,7 +511,6 @@ class OSSimulatorWindow(QMainWindow):
 
         cpu_frame.addWidget(self.cpu_progress)
         layout.addWidget(cpu_frame)
-        layout.addStretch()
 
         return cpu_tab
 
@@ -526,9 +535,9 @@ class OSSimulatorWindow(QMainWindow):
             QHeaderView.ResizeMode.Stretch
         )
         self.process_table.setStyleSheet(TABLE_STYLE)
-        
-        # Forzar política de expansión para que ocupe todo el alto disponible sin descuadrarse
-        self.process_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.process_table.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
 
         process_frame.addWidget(self.process_table)
 
@@ -595,6 +604,7 @@ class OSSimulatorWindow(QMainWindow):
     def setup_memory_tab(self):
         memory_tab = QWidget()
         layout = QVBoxLayout(memory_tab)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         memory_frame = OSModuleFrame(
             "Administración de Memoria", "utilities-terminal"
@@ -634,6 +644,7 @@ class OSSimulatorWindow(QMainWindow):
     def setup_io_tab(self):
         io_tab = QWidget()
         layout = QVBoxLayout(io_tab)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         io_frame = OSModuleFrame(
             "Dispositivos de Entrada/Salida", "media-mount"
@@ -655,6 +666,7 @@ class OSSimulatorWindow(QMainWindow):
     def setup_fs_tab(self):
         fs_tab = QWidget()
         layout = QVBoxLayout(fs_tab)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         fs_frame = OSModuleFrame("Sistema de Archivos", "document-open")
 
@@ -684,6 +696,7 @@ class OSSimulatorWindow(QMainWindow):
 
         self.control_group = QFrame()
         self.control_group.setStyleSheet(PANEL_STYLE)
+        self.control_group.setMaximumHeight(200)
 
         control_layout = QVBoxLayout(self.control_group)
 
@@ -761,13 +774,12 @@ class OSSimulatorWindow(QMainWindow):
 
         control_layout.addLayout(grid_buttons)
 
-        self.control_group.setMinimumHeight(220)
+        self.control_group.setMinimumHeight(200)
         lower_layout.addWidget(self.control_group, stretch=1)
 
         self.log_module = OSModuleFrame("Log del Sistema", "utilities-log-viewer")
         self.os_log = OSConsoleLog()
-
-        self.os_log.setMinimumHeight(180)
+        self.os_log.setMaximumHeight(160)
 
         self.log_module.addWidget(self.os_log)
 
@@ -869,6 +881,14 @@ class OSSimulatorWindow(QMainWindow):
             datos = proceso.obtener_datos_tabla()
             for column, value in enumerate(datos):
                 item = QTableWidgetItem(str(value))
+                
+                if proceso.estado == "Running":
+                    item.setBackground(QColor("#1E3A8A"))
+                    item.setForeground(QColor("#93C5FD"))
+                    font = item.font()
+                    font.setBold(True)
+                    item.setFont(font)
+                
                 self.process_table.setItem(row, column, item)
 
     def actualizar_memoria(self):

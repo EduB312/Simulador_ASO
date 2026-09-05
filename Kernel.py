@@ -245,10 +245,12 @@ class Kernel:
             self.cpu.ocupado = True
 
     def _planificar_colas_multiples(self):
+        # Colas múltiples: Separa los procesos por su nivel de prioridad asignado
         if self.cpu.proceso_actual is not None:
             return
         listos = [p for p in self.procesos if p.estado == "Ready"]
         if listos:
+            # Atiende primero las colas con menor valor numérico de prioridad, respetando FIFO (llegada)
             listos.sort(key=lambda p: (p.prioridad, p.llegada))
             siguiente = listos[0]
             siguiente.estado = "Running"
@@ -256,10 +258,12 @@ class Kernel:
             self.cpu.ocupado = True
 
     def _planificar_garantizada(self):
+        # Planificación garantizada: Busca el equilibrio calculando la proporción de tiempo de CPU recibido
         if self.cpu.proceso_actual is not None:
             return
         listos = [p for p in self.procesos if p.estado == "Ready"]
         if listos:
+            # Da prioridad al proceso que tenga menor tiempo ejecutado en proporción a su necesidad
             listos.sort(key=lambda p: (p.tiempo_total - p.tiempo_restante))
             siguiente = listos[0]
             siguiente.estado = "Running"
@@ -267,15 +271,18 @@ class Kernel:
             self.cpu.ocupado = True
 
     def _planificar_dos_niveles(self):
+        # Planificación a dos niveles: Cola del sistema (prioridad alta <= 10) y cola de usuario
         if self.cpu.proceso_actual is not None:
             return
         listos = [p for p in self.procesos if p.estado == "Ready"]
         if listos:
+            # Prioridad absoluta a procesos del sistema o nivel alto
             sistema = [p for p in listos if p.prioridad <= 10]
             if sistema:
                 sistema.sort(key=lambda p: p.llegada)
                 siguiente = sistema[0]
             else:
+                # Si no hay del sistema, pasa a los de usuario por orden de llegada
                 listos.sort(key=lambda p: p.llegada)
                 siguiente = listos[0]
 
