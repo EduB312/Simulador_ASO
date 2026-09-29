@@ -34,6 +34,9 @@ from PyQt6.QtGui import (
 
 from Kernel import Kernel
 
+# Importamos la nueva ventana de visualización de memoria
+from VisualizadorMemoria import VisualizadorMemoria
+
 PANEL_STYLE = """
 QFrame {
     background-color: #1F2937;
@@ -377,18 +380,6 @@ class OSSimulatorWindow(QMainWindow):
         status_layout.addWidget(self.so_title_label)
         status_layout.addStretch()
 
-        lbl_alg = QLabel("Algoritmo:")
-        lbl_alg.setStyleSheet("font-weight: bold; color: #94A3B8;")
-        status_layout.addWidget(lbl_alg)
-
-        self.combo_algoritmo = QComboBox()
-        self.combo_algoritmo.setStyleSheet(COMBO_STYLE)
-        self.combo_algoritmo.addItems(self.kernel.ALGORITMOS_DISPONIBLES)
-        self.combo_algoritmo.currentTextChanged.connect(self.al_cambiar_algoritmo)
-        status_layout.addWidget(self.combo_algoritmo)
-
-        status_layout.addSpacing(15)
-
         self.time_label = QLabel("System Time: 00:00")
         self.time_label.setStyleSheet(
             """
@@ -594,6 +585,18 @@ class OSSimulatorWindow(QMainWindow):
             """
         )
         button_layout.addWidget(self.btn_kill_process)
+
+        lbl_alg = QLabel("Algoritmo:")
+        lbl_alg.setStyleSheet("font-weight: bold; color: #94A3B8; margin-left: 15px;")
+        button_layout.addWidget(lbl_alg)
+
+        self.combo_algoritmo = QComboBox()
+        self.combo_algoritmo.setStyleSheet(COMBO_STYLE)
+        self.combo_algoritmo.addItems(self.kernel.ALGORITMOS_DISPONIBLES)
+        self.combo_algoritmo.setCurrentText(self.kernel.algoritmo_planificacion)
+        self.combo_algoritmo.currentTextChanged.connect(self.al_cambiar_algoritmo)
+        button_layout.addWidget(self.combo_algoritmo)
+
         button_layout.addStretch()
 
         process_frame.layout.addLayout(button_layout)
@@ -636,6 +639,30 @@ class OSSimulatorWindow(QMainWindow):
 
         self.memory_map = MemoryMapWidget()
         memory_frame.addWidget(self.memory_map)
+
+        # -----------------------------------------------------
+        # BOTÓN NUEVO: ABRIR VISOR AVANZADO DE MEMORIA
+        # -----------------------------------------------------
+        self.btn_visor_memoria = QPushButton(" Abrir Visor Avanzado de Memoria")
+        self.btn_visor_memoria.clicked.connect(self.abrir_visor_memoria)
+        self.btn_visor_memoria.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #7C3AED;
+                color: white;
+                border-radius: 6px;
+                padding: 8px 15px;
+                font-weight: bold;
+                border: 1px solid #8B5CF6;
+                margin-top: 5px;
+            }
+            QPushButton:hover {
+                background-color: #8B5CF6;
+            }
+            """
+        )
+        memory_frame.addWidget(self.btn_visor_memoria)
+        # -----------------------------------------------------
 
         layout.addWidget(memory_frame)
 
@@ -1145,6 +1172,13 @@ Sistema de archivos:
         self.os_log.addLogEntry(
             "ERR", "Test: Fallo simulado en asignación de memoria."
         )
+
+    # -----------------------------------------------------
+    # MÉTODO NUEVO: ABRIR LA VENTANA DEL VISOR DE MEMORIA
+    # -----------------------------------------------------
+    def abrir_visor_memoria(self):
+        self.visor_memoria = VisualizadorMemoria()
+        self.visor_memoria.show()
 
 
 if __name__ == "__main__":
