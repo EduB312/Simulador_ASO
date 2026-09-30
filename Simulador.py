@@ -1176,9 +1176,20 @@ Sistema de archivos:
     # -----------------------------------------------------
     # MÉTODO NUEVO: ABRIR LA VENTANA DEL VISOR DE MEMORIA
     # -----------------------------------------------------
+   # -----------------------------------------------------
+    # MÉTODO NUEVO: ABRIR LA VENTANA DEL VISOR DE MEMORIA
+    # -----------------------------------------------------
     def abrir_visor_memoria(self):
-        self.visor_memoria = VisualizadorMemoria()
-        self.visor_memoria.show()
+        # Si la ventana no ha sido creada todavía, la creamos
+        if not hasattr(self, 'visor_memoria'):
+            self.visor_memoria = VisualizadorMemoria()
+            
+        # Si la ventana está oculta o minimizada, la mostramos sin borrar datos
+        if self.visor_memoria.isHidden():
+            self.visor_memoria.show()
+            
+        self.visor_memoria.raise_()
+        self.visor_memoria.activateWindow()
 
 
 if __name__ == "__main__":
