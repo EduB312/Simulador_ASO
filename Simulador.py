@@ -34,18 +34,108 @@ from PyQt6.QtGui import (
 
 from Kernel import Kernel
 
-# Importamos la nueva ventana de visualizaci贸n de memoria
+# Importamos la nueva ventana de visualización de memoria
 from VisualizadorMemoria import VisualizadorMemoria
 
-PANEL_STYLE = """ QFrame { background-color: #1F2937; border-radius: 10px; border: 1px solid #334155; padding: 4px; } """
+PANEL_STYLE = """
+QFrame {
+    background-color: #1F2937;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    padding: 4px;
+}
+"""
 
-PANEL_HEADER_STYLE = """ QLabel { font-weight: bold; color: #60A5FA; margin-bottom: 2px; } """
+PANEL_HEADER_STYLE = """
+QLabel {
+    font-weight: bold;
+    color: #60A5FA;
+    margin-bottom: 2px;
+}
+"""
 
-TABLE_STYLE = """ QTableWidget { background-color: #111827; color: #E5E7EB; gridline-color: #334155; selection-background-color: #2563EB; selection-color: #FFFFFF; border-radius: 6px; border: 1px solid #334155; alternate-background-color: #172033; } QTableWidget::item { padding: 6px; } QTableWidget::item:selected { background-color: #2563EB; color: #FFFFFF; } QHeaderView::section { background-color: #243244; color: #60A5FA; font-weight: bold; border: 1px solid #334155; padding: 7px; } """
+TABLE_STYLE = """
+QTableWidget {
+    background-color: #111827;
+    color: #E5E7EB;
+    gridline-color: #334155;
+    selection-background-color: #2563EB;
+    selection-color: #FFFFFF;
+    border-radius: 6px;
+    border: 1px solid #334155;
+    alternate-background-color: #172033;
+}
 
-TREE_STYLE = """ QTreeWidget { background-color: #111827; color: #E5E7EB; border-radius: 6px; border: 1px solid #334155; alternate-background-color: #172033; } QTreeWidget::item { padding: 5px; } QTreeWidget::item:selected { background-color: #2563EB; color: #FFFFFF; } QTreeWidget::item:hover { background-color: #1E3A5F; } """
+QTableWidget::item {
+    padding: 6px;
+}
 
-COMBO_STYLE = """ QComboBox { background-color: #111827; color: #60A5FA; font-weight: bold; border: 2px solid #3B82F6; border-radius: 8px; padding: 6px 12px; min-width: 160px; } QComboBox:hover { border: 2px solid #60A5FA; background-color: #1F2937; } QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: top right; width: 25px; border-left-width: 0px; } QComboBox QAbstractItemView { background-color: #1F2937; color: #E5E7EB; selection-background-color: #2563EB; selection-color: #FFFFFF; border: 1px solid #3B82F6; padding: 4px; } """
+QTableWidget::item:selected {
+    background-color: #2563EB;
+    color: #FFFFFF;
+}
+
+QHeaderView::section {
+    background-color: #243244;
+    color: #60A5FA;
+    font-weight: bold;
+    border: 1px solid #334155;
+    padding: 7px;
+}
+"""
+
+TREE_STYLE = """
+QTreeWidget {
+    background-color: #111827;
+    color: #E5E7EB;
+    border-radius: 6px;
+    border: 1px solid #334155;
+    alternate-background-color: #172033;
+}
+
+QTreeWidget::item {
+    padding: 5px;
+}
+
+QTreeWidget::item:selected {
+    background-color: #2563EB;
+    color: #FFFFFF;
+}
+
+QTreeWidget::item:hover {
+    background-color: #1E3A5F;
+}
+"""
+
+COMBO_STYLE = """
+QComboBox {
+    background-color: #111827;
+    color: #60A5FA;
+    font-weight: bold;
+    border: 2px solid #3B82F6;
+    border-radius: 8px;
+    padding: 6px 12px;
+    min-width: 160px;
+}
+QComboBox:hover {
+    border: 2px solid #60A5FA;
+    background-color: #1F2937;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 25px;
+    border-left-width: 0px;
+}
+QComboBox QAbstractItemView {
+    background-color: #1F2937;
+    color: #E5E7EB;
+    selection-background-color: #2563EB;
+    selection-color: #FFFFFF;
+    border: 1px solid #3B82F6;
+    padding: 4px;
+}
+"""
 
 
 class OSModuleFrame(QFrame):
@@ -120,11 +210,17 @@ class MemoryMapWidget(QWidget):
 
             if index < used_blocks:
                 label.setStyleSheet(
-                    """ background-color: #3B82F6; border: 1px solid #2563EB; """
+                    """
+                    background-color: #3B82F6;
+                    border: 1px solid #2563EB;
+                    """
                 )
             else:
                 label.setStyleSheet(
-                    """ background-color: #1E293B; border: 1px solid #334155; """
+                    """
+                    background-color: #1E293B;
+                    border: 1px solid #334155;
+                    """
                 )
 
 
@@ -135,7 +231,17 @@ class OSConsoleLog(QPlainTextEdit):
 
         self.setReadOnly(True)
         self.setStyleSheet(
-            """ QPlainTextEdit { background-color: #0B1120; color: #E5E7EB; font-family: Consolas, monospace; font-size: 11px; border: 1px solid #334155; border-radius: 6px; padding: 5px; } """
+            """
+            QPlainTextEdit {
+                background-color: #0B1120;
+                color: #E5E7EB;
+                font-family: Consolas, monospace;
+                font-size: 11px;
+                border: 1px solid #334155;
+                border-radius: 6px;
+                padding: 5px;
+            }
+            """
         )
 
     def addLogEntry(self, log_type, message):
@@ -180,7 +286,43 @@ class OSSimulatorWindow(QMainWindow):
         self.setPalette(dark_palette)
 
         self.setStyleSheet(
-            """ QWidget { color: #E5E7EB; font-family: 'Segoe UI'; font-size: 13px; } QToolTip { background-color: #1F2937; color: #FFFFFF; border: 1px solid #3B82F6; padding: 5px; } QProgressBar { background-color: #111827; border: 1px solid #334155; border-radius: 6px; text-align: center; color: #FFFFFF; font-weight: bold; height: 20px; } QProgressBar::chunk { background-color: #3B82F6; border-radius: 5px; } QMessageBox { background-color: #1F2937; } QMessageBox QLabel { color: #E5E7EB; } """
+            """
+            QWidget {
+                color: #E5E7EB;
+                font-family: 'Segoe UI';
+                font-size: 13px;
+            }
+
+            QToolTip {
+                background-color: #1F2937;
+                color: #FFFFFF;
+                border: 1px solid #3B82F6;
+                padding: 5px;
+            }
+
+            QProgressBar {
+                background-color: #111827;
+                border: 1px solid #334155;
+                border-radius: 6px;
+                text-align: center;
+                color: #FFFFFF;
+                font-weight: bold;
+                height: 20px;
+            }
+
+            QProgressBar::chunk {
+                background-color: #3B82F6;
+                border-radius: 5px;
+            }
+
+            QMessageBox {
+                background-color: #1F2937;
+            }
+
+            QMessageBox QLabel {
+                color: #E5E7EB;
+            }
+            """
         )
 
         self.central_widget = QWidget()
@@ -215,7 +357,13 @@ class OSSimulatorWindow(QMainWindow):
     def setup_status_bar(self):
         status_frame = QFrame()
         status_frame.setStyleSheet(
-            """ QFrame { background-color: #1F2937; border-radius: 10px; border: 1px solid #334155; } """
+            """
+            QFrame {
+                background-color: #1F2937;
+                border-radius: 10px;
+                border: 1px solid #334155;
+            }
+            """
         )
 
         status_layout = QHBoxLayout(status_frame)
@@ -223,14 +371,22 @@ class OSSimulatorWindow(QMainWindow):
 
         self.so_title_label = QLabel("Simulador SO")
         self.so_title_label.setStyleSheet(
-            """ font-size: 20px; font-weight: bold; color: #60A5FA; """
+            """
+            font-size: 20px;
+            font-weight: bold;
+            color: #60A5FA;
+            """
         )
         status_layout.addWidget(self.so_title_label)
         status_layout.addStretch()
 
         self.time_label = QLabel("System Time: 00:00")
         self.time_label.setStyleSheet(
-            """ font-size: 15px; font-weight: bold; color: #E5E7EB; """
+            """
+            font-size: 15px;
+            font-weight: bold;
+            color: #E5E7EB;
+            """
         )
         status_layout.addWidget(self.time_label)
         status_layout.addStretch()
@@ -245,13 +401,19 @@ class OSSimulatorWindow(QMainWindow):
 
         self.kernel_state_label = QLabel("STOPPED")
         self.kernel_state_label.setStyleSheet(
-            """ font-weight: bold; color: #EF4444; """
+            """
+            font-weight: bold;
+            color: #EF4444;
+            """
         )
         status_layout.addWidget(self.kernel_state_label)
 
         self.load_label = QLabel("Overall System Load: 0%")
         self.load_label.setStyleSheet(
-            """ font-weight: bold; color: #60A5FA; """
+            """
+            font-weight: bold;
+            color: #60A5FA;
+            """
         )
         status_layout.addSpacing(20)
         status_layout.addWidget(self.load_label)
@@ -267,7 +429,37 @@ class OSSimulatorWindow(QMainWindow):
     def setup_central_modules(self):
         self.tab_widget = QTabWidget()
         self.tab_widget.setStyleSheet(
-            """ QTabWidget::pane { border: 1px solid #334155; border-radius: 10px; background-color: #1F2937; top: -1px; } QTabBar::tab { background: #111827; border: 1px solid #334155; border-bottom: none; padding: 9px 16px; color: #94A3B8; font-weight: bold; margin-right: 3px; border-top-left-radius: 6px; border-top-right-radius: 6px; } QTabBar::tab:selected { background: #1F2937; color: #60A5FA; border-top: 2px solid #3B82F6; } QTabBar::tab:hover { background: #243244; color: #E5E7EB; } """
+            """
+            QTabWidget::pane {
+                border: 1px solid #334155;
+                border-radius: 10px;
+                background-color: #1F2937;
+                top: -1px;
+            }
+
+            QTabBar::tab {
+                background: #111827;
+                border: 1px solid #334155;
+                border-bottom: none;
+                padding: 9px 16px;
+                color: #94A3B8;
+                font-weight: bold;
+                margin-right: 3px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+            }
+
+            QTabBar::tab:selected {
+                background: #1F2937;
+                color: #60A5FA;
+                border-top: 2px solid #3B82F6;
+            }
+
+            QTabBar::tab:hover {
+                background: #243244;
+                color: #E5E7EB;
+            }
+            """
         )
 
         self.tab_widget.addTab(self.setup_cpu_tab(), "[ CPU ]")
@@ -283,7 +475,7 @@ class OSSimulatorWindow(QMainWindow):
         layout = QVBoxLayout(cpu_tab)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        cpu_frame = OSModuleFrame("CPU [ N脷CLEO 1 ]", "processor")
+        cpu_frame = OSModuleFrame("CPU [ NÚCLEO 1 ]", "processor")
 
         self.cpu_model_label = QLabel()
         self.cpu_process_label = QLabel()
@@ -300,7 +492,11 @@ class OSSimulatorWindow(QMainWindow):
             self.cpu_load_label,
         ]:
             label.setStyleSheet(
-                """ font-size: 14px; padding: 5px; color: #CBD5E1; """
+                """
+                font-size: 14px;
+                padding: 5px;
+                color: #CBD5E1;
+                """
             )
             cpu_frame.addWidget(label)
 
@@ -316,7 +512,7 @@ class OSSimulatorWindow(QMainWindow):
 
         process_frame = OSModuleFrame("Procesos Actuales", "task-due")
 
-        # Modificado: Se a帽ade 1 columna extra ("Acci贸n") en vez de 7 ahora son 8
+        # Modificado: Se añade 1 columna extra ("Acción") en vez de 7 ahora son 8
         self.process_table = QTableWidget(0, 8)
         self.process_table.setEditTriggers(
             QTableWidget.EditTrigger.NoEditTriggers
@@ -325,7 +521,7 @@ class OSSimulatorWindow(QMainWindow):
             QTableWidget.SelectionBehavior.SelectRows
         )
         self.process_table.setHorizontalHeaderLabels(
-            ["PID", "Name", "State", "Priority", "CPU%", "Memory%", "Time", "Acci贸n"]
+            ["PID", "Name", "State", "Priority", "CPU%", "Memory%", "Time", "Acción"]
         )
         self.process_table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch
@@ -342,11 +538,30 @@ class OSSimulatorWindow(QMainWindow):
         self.btn_new_process = QPushButton("+ Nuevo Proceso")
         self.btn_new_process.clicked.connect(self.nuevo_proceso)
         self.btn_new_process.setStyleSheet(
-            """ QPushButton { background-color: #2563EB; color: white; border-radius: 6px; padding: 8px 15px; font-weight: bold; border: 1px solid #3B82F6; } QPushButton:hover { background-color: #3B82F6; } QPushButton:disabled { background-color: #374151; color: #9CA3AF; border: 1px solid #4B5563; } """
+            """
+            QPushButton {
+                background-color: #2563EB;
+                color: white;
+                border-radius: 6px;
+                padding: 8px 15px;
+                font-weight: bold;
+                border: 1px solid #3B82F6;
+            }
+
+            QPushButton:hover {
+                background-color: #3B82F6;
+            }
+
+            QPushButton:disabled {
+                background-color: #374151;
+                color: #9CA3AF;
+                border: 1px solid #4B5563;
+            }
+            """
         )
         button_layout.addWidget(self.btn_new_process)
 
-        # Se elimin贸 el bot贸n rojo global "btn_kill_process" de aqu铆 para limpiar la UI
+        # Se eliminó el botón rojo global "btn_kill_process" de aquí para limpiar la UI
 
         button_layout.addStretch()
 
@@ -372,7 +587,7 @@ class OSSimulatorWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
 
         memory_frame = OSModuleFrame(
-            "Administraci贸n de Memoria", "utilities-terminal"
+            "Administración de Memoria", "utilities-terminal"
         )
 
         self.memory_total_label = QLabel()
@@ -387,7 +602,11 @@ class OSSimulatorWindow(QMainWindow):
             self.memory_fragmentation_label,
         ]:
             label.setStyleSheet(
-                """ font-size: 14px; padding: 3px; color: #CBD5E1; """
+                """
+                font-size: 14px;
+                padding: 3px;
+                color: #CBD5E1;
+                """
             )
             memory_frame.addWidget(label)
 
@@ -399,12 +618,25 @@ class OSSimulatorWindow(QMainWindow):
         memory_frame.addWidget(self.memory_map)
 
         # -----------------------------------------------------
-        # BOT脫N NUEVO: ABRIR VISOR AVANZADO DE MEMORIA
+        # BOTÓN NUEVO: ABRIR VISOR AVANZADO DE MEMORIA
         # -----------------------------------------------------
         self.btn_visor_memoria = QPushButton(" Abrir Visor Avanzado de Memoria")
         self.btn_visor_memoria.clicked.connect(self.abrir_visor_memoria)
         self.btn_visor_memoria.setStyleSheet(
-            """ QPushButton { background-color: #7C3AED; color: white; border-radius: 6px; padding: 8px 15px; font-weight: bold; border: 1px solid #8B5CF6; margin-top: 5px; } QPushButton:hover { background-color: #8B5CF6; } """
+            """
+            QPushButton {
+                background-color: #7C3AED;
+                color: white;
+                border-radius: 6px;
+                padding: 8px 15px;
+                font-weight: bold;
+                border: 1px solid #8B5CF6;
+                margin-top: 5px;
+            }
+            QPushButton:hover {
+                background-color: #8B5CF6;
+            }
+            """
         )
         memory_frame.addWidget(self.btn_visor_memoria)
         # -----------------------------------------------------
@@ -444,7 +676,12 @@ class OSSimulatorWindow(QMainWindow):
 
         self.fs_status_label = QLabel()
         self.fs_status_label.setStyleSheet(
-            """ font-size: 14px; font-weight: bold; padding: 5px; color: #22C55E; """
+            """
+            font-size: 14px;
+            font-weight: bold;
+            padding: 5px;
+            color: #22C55E;
+            """
         )
         fs_frame.addWidget(self.fs_status_label)
 
@@ -475,13 +712,13 @@ class OSSimulatorWindow(QMainWindow):
         grid_buttons = QGridLayout()
         grid_buttons.setSpacing(8)
 
-        self.btn_iniciar = QPushButton("鈻讹笍 Iniciar SO")
+        self.btn_iniciar = QPushButton("▶️ Iniciar SO")
         self.btn_iniciar.clicked.connect(self.iniciar_so)
 
-        self.btn_detener = QPushButton("鈻� Detener")
+        self.btn_detener = QPushButton("■ Detener")
         self.btn_detener.clicked.connect(self.detener_so)
 
-        self.btn_reiniciar = QPushButton("鈫� Reiniciar")
+        self.btn_reiniciar = QPushButton("↻ Reiniciar")
         self.btn_reiniciar.clicked.connect(self.reiniciar_so)
 
         self.btn_clock1 = QPushButton("Avanzar Reloj +1")
@@ -493,7 +730,7 @@ class OSSimulatorWindow(QMainWindow):
         self.btn_clock60 = QPushButton("Avanzar Reloj +60")
         self.btn_clock60.clicked.connect(lambda: self.avanzar_reloj(60))
 
-        self.btn_config = QPushButton("Configuraci贸n")
+        self.btn_config = QPushButton("Configuración")
         self.btn_config.clicked.connect(self.mostrar_configuracion)
 
         self.btn_test = QPushButton("Test Error Log")
@@ -515,7 +752,27 @@ class OSSimulatorWindow(QMainWindow):
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
             )
             btn.setStyleSheet(
-                f""" QPushButton {{ background-color: {color}; color: #FFFFFF; border-radius: 7px; font-weight: bold; border: 1px solid #475569; padding: 9px; }} QPushButton:hover {{ background-color: #3B82F6; border: 1px solid #60A5FA; }} QPushButton:disabled {{ background-color: #374151; color: #6B7280; border: 1px solid #4B5563; }} """
+                f"""
+                QPushButton {{
+                    background-color: {color};
+                    color: #FFFFFF;
+                    border-radius: 7px;
+                    font-weight: bold;
+                    border: 1px solid #475569;
+                    padding: 9px;
+                }}
+
+                QPushButton:hover {{
+                    background-color: #3B82F6;
+                    border: 1px solid #60A5FA;
+                }}
+
+                QPushButton:disabled {{
+                    background-color: #374151;
+                    color: #6B7280;
+                    border: 1px solid #4B5563;
+                }}
+                """
             )
             grid_buttons.addWidget(btn, row, col)
 
@@ -555,24 +812,45 @@ class OSSimulatorWindow(QMainWindow):
 
         if estado == "RUNNING":
             self.kernel_status_led.setStyleSheet(
-                """ background-color: #22C55E; border-radius: 7px; border: 1px solid #16A34A; """
+                """
+                background-color: #22C55E;
+                border-radius: 7px;
+                border: 1px solid #16A34A;
+                """
             )
             self.kernel_state_label.setStyleSheet(
-                """ font-weight: bold; color: #22C55E; """
+                """
+                font-weight: bold;
+                color: #22C55E;
+                """
             )
         elif estado == "STOPPED":
             self.kernel_status_led.setStyleSheet(
-                """ background-color: #EF4444; border-radius: 7px; border: 1px solid #DC2626; """
+                """
+                background-color: #EF4444;
+                border-radius: 7px;
+                border: 1px solid #DC2626;
+                """
             )
             self.kernel_state_label.setStyleSheet(
-                """ font-weight: bold; color: #EF4444; """
+                """
+                font-weight: bold;
+                color: #EF4444;
+                """
             )
         else:
             self.kernel_status_led.setStyleSheet(
-                """ background-color: #F59E0B; border-radius: 7px; border: 1px solid #D97706; """
+                """
+                background-color: #F59E0B;
+                border-radius: 7px;
+                border: 1px solid #D97706;
+                """
             )
             self.kernel_state_label.setStyleSheet(
-                """ font-weight: bold; color: #F59E0B; """
+                """
+                font-weight: bold;
+                color: #F59E0B;
+                """
             )
 
     def actualizar_reloj(self):
@@ -620,14 +898,29 @@ class OSSimulatorWindow(QMainWindow):
                 
                 self.process_table.setItem(row, column, item)
 
-            # Insertar el bot贸n de Eliminar en la columna 8 (铆ndice 7)
+            # Insertar el botón de Eliminar en la columna 8 (índice 7)
             btn_eliminar = QPushButton("Eliminar")
             
-            # Desactivar el bot贸n si el kernel est谩 apagado o si es el proceso init (PID 1)
+            # Desactivar el botón si el kernel está apagado o si es el proceso init (PID 1)
             if not es_activo or proceso.pid == 1:
                 btn_eliminar.setEnabled(False)
                 
-            btn_eliminar.setStyleSheet(""" QPushButton { background-color: #B91C1C; color: white; border-radius: 4px; padding: 4px 10px; font-weight: bold; } QPushButton:hover { background-color: #EF4444; } QPushButton:disabled { background-color: #374151; color: #6B7280; } """)
+            btn_eliminar.setStyleSheet("""
+                QPushButton {
+                    background-color: #B91C1C;
+                    color: white;
+                    border-radius: 4px;
+                    padding: 4px 10px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #EF4444;
+                }
+                QPushButton:disabled {
+                    background-color: #374151;
+                    color: #6B7280;
+                }
+            """)
             
             pid_actual = proceso.pid
             # Usar lambda para pasar el PID correcto al momento de hacer clic
@@ -649,7 +942,7 @@ class OSSimulatorWindow(QMainWindow):
         self.memory_used_label.setText(f"Memoria usada: {usada} MB ({porcentaje}%)")
         self.memory_available_label.setText(f"Memoria disponible: {disponible} MB")
         self.memory_fragmentation_label.setText(
-            f"Fragmentaci贸n: {memoria.fragmentacion_pct}%"
+            f"Fragmentación: {memoria.fragmentacion_pct}%"
         )
 
         self.memory_progress.setValue(porcentaje)
@@ -672,12 +965,22 @@ class OSSimulatorWindow(QMainWindow):
         if fs.montado:
             self.fs_status_label.setText("Estado: MONTADO")
             self.fs_status_label.setStyleSheet(
-                """ font-size: 14px; font-weight: bold; padding: 5px; color: #22C55E; """
+                """
+                font-size: 14px;
+                font-weight: bold;
+                padding: 5px;
+                color: #22C55E;
+                """
             )
         else:
             self.fs_status_label.setText("Estado: DESMONTADO")
             self.fs_status_label.setStyleSheet(
-                """ font-size: 14px; font-weight: bold; padding: 5px; color: #EF4444; """
+                """
+                font-size: 14px;
+                font-weight: bold;
+                padding: 5px;
+                color: #EF4444;
+                """
             )
 
         root = QTreeWidgetItem(self.fs_tree, ["/"])
@@ -703,7 +1006,7 @@ class OSSimulatorWindow(QMainWindow):
             parent_path = file_path.rsplit("/", 1)[0]
             if parent_path == path:
                 filename = file_path.rsplit("/", 1)[1]
-                QTreeWidgetItem(parent_item, ["馃搫 " + filename])
+                QTreeWidgetItem(parent_item, ["📄 " + filename])
 
     def update_sim_data(self):
         if not self.kernel.esta_ejecutando():
@@ -717,13 +1020,13 @@ class OSSimulatorWindow(QMainWindow):
         if self.kernel.system_time_counter % 5 == 0:
             self.os_log.addLogEntry(
                 "INFO",
-                f"Kernel actualiz贸 el sistema. Carga: {self.kernel.cpu.carga_general}%",
+                f"Kernel actualizó el sistema. Carga: {self.kernel.cpu.carga_general}%",
             )
 
     def iniciar_so(self):
         if self.kernel.esta_ejecutando():
             self.os_log.addLogEntry(
-                "WARN", "El sistema operativo ya est谩 ejecut谩ndose."
+                "WARN", "El sistema operativo ya está ejecutándose."
             )
             return
 
@@ -734,7 +1037,7 @@ class OSSimulatorWindow(QMainWindow):
     def detener_so(self):
         if not self.kernel.esta_ejecutando():
             self.os_log.addLogEntry(
-                "WARN", "El sistema operativo ya est谩 detenido."
+                "WARN", "El sistema operativo ya está detenido."
             )
             return
 
@@ -750,7 +1053,7 @@ class OSSimulatorWindow(QMainWindow):
     def avanzar_reloj(self, segundos):
         if not self.kernel.esta_ejecutando():
             self.os_log.addLogEntry(
-                "WARN", "El SO est谩 detenido. No se puede avanzar el reloj."
+                "WARN", "El SO está detenido. No se puede avanzar el reloj."
             )
             QMessageBox.warning(
                 self,
@@ -766,7 +1069,7 @@ class OSSimulatorWindow(QMainWindow):
     def nuevo_proceso(self):
         if not self.kernel.esta_ejecutando():
             self.os_log.addLogEntry(
-                "WARN", "El SO est谩 detenido. No se pueden crear procesos."
+                "WARN", "El SO está detenido. No se pueden crear procesos."
             )
             QMessageBox.warning(
                 self,
@@ -781,11 +1084,11 @@ class OSSimulatorWindow(QMainWindow):
             "INFO", f"Nuevo proceso creado: {proceso.nombre} (PID {proceso.pid})"
         )
 
-    # NUEVO M脡TODO REESCRITO: Mata el proceso espec铆fico mediante su PID
+    # NUEVO MÉTODO REESCRITO: Mata el proceso específico mediante su PID
     def matar_proceso_por_pid(self, pid):
         if not self.kernel.esta_ejecutando():
             self.os_log.addLogEntry(
-                "WARN", "El SO est谩 detenido. No se pueden gestionar procesos."
+                "WARN", "El SO está detenido. No se pueden gestionar procesos."
             )
             return
 
@@ -808,8 +1111,8 @@ class OSSimulatorWindow(QMainWindow):
 
         respuesta = QMessageBox.question(
             self,
-            "Confirmar eliminaci贸n",
-            f"驴Deseas eliminar el proceso {proceso.nombre} (PID {pid})?",
+            "Confirmar eliminación",
+            f"¿Deseas eliminar el proceso {proceso.nombre} (PID {pid})?",
         )
 
         if respuesta != QMessageBox.StandardButton.Yes:
@@ -827,13 +1130,35 @@ class OSSimulatorWindow(QMainWindow):
     def mostrar_configuracion(self):
         info = self.kernel.obtener_informacion_sistema()
 
-        mensaje = f""" CONFIGURACI脫N DEL SISTEMA Kernel: Estado: {info["kernel"]} CPU: Carga: {info["cpu"]}% Memoria: Total: {info["memoria_total"]} MB Usada: {info["memoria_usada"]} MB Fragmentaci贸n: {info["fragmentacion"]}% Procesos: Cantidad: {info["procesos"]} Dispositivos: Cantidad: {info["dispositivos"]} Sistema de archivos: {info["sistema_archivos"]} """
+        mensaje = f"""
+CONFIGURACIÓN DEL SISTEMA
 
-        QMessageBox.information(self, "Configuraci贸n del Sistema", mensaje)
+Kernel:
+Estado: {info["kernel"]}
+
+CPU:
+Carga: {info["cpu"]}%
+
+Memoria:
+Total: {info["memoria_total"]} MB
+Usada: {info["memoria_usada"]} MB
+Fragmentación: {info["fragmentacion"]}%
+
+Procesos:
+Cantidad: {info["procesos"]}
+
+Dispositivos:
+Cantidad: {info["dispositivos"]}
+
+Sistema de archivos:
+{info["sistema_archivos"]}
+"""
+
+        QMessageBox.information(self, "Configuración del Sistema", mensaje)
 
     def test_error(self):
         self.os_log.addLogEntry(
-            "ERR", "Test: Fallo simulado en asignaci贸n de memoria."
+            "ERR", "Test: Fallo simulado en asignación de memoria."
         )
 
     def abrir_visor_memoria(self):
