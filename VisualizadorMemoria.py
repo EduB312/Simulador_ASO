@@ -99,17 +99,15 @@ class VisualizadorMemoria(QMainWindow):
         self.setCentralWidget(main_widget)
         layout = QVBoxLayout(main_widget)
         
-        title = QLabel("Visor General de Memoria ")
+        title = QLabel("Visor General de Memoria (ASO - Avance 3)")
         title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {ACCENT_BLUE}; margin-bottom: 10px;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
         self.tabs = QTabWidget()
-        # Módulos Avance 2 (Asignación Dinámica)
         self.tabs.addTab(self.crear_mapa_bits(), "🔲 Mapa de Bits")
         self.tabs.addTab(self.crear_listas_ligadas(), "🔗 Lista Ligada & Estrategias")
         self.tabs.addTab(self.crear_sistema_asociados(), "🌳 Sistema Asociados")
-        # Módulo Avance 3 (Memoria Virtual)
         self.tabs.addTab(self.crear_reemplazo_paginas(), "🔄 Memoria Virtual (Reemplazo)")
         
         layout.addWidget(self.tabs)
