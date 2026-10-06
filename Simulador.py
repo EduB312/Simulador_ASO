@@ -512,7 +512,8 @@ class OSSimulatorWindow(QMainWindow):
 
         process_frame = OSModuleFrame("Procesos Actuales", "task-due")
 
-        self.process_table = QTableWidget(0, 7)
+        # Modificado: Se añade 1 columna extra ("Acción") en vez de 7 ahora son 8
+        self.process_table = QTableWidget(0, 8)
         self.process_table.setEditTriggers(
             QTableWidget.EditTrigger.NoEditTriggers
         )
@@ -520,7 +521,7 @@ class OSSimulatorWindow(QMainWindow):
             QTableWidget.SelectionBehavior.SelectRows
         )
         self.process_table.setHorizontalHeaderLabels(
-            ["PID", "Name", "State", "Priority", "CPU%", "Memory%", "Time"]
+            ["PID", "Name", "State", "Priority", "CPU%", "Memory%", "Time", "Acción"]
         )
         self.process_table.horizontalHeader().setSectionResizeMode(
             QHeaderView.ResizeMode.Stretch
@@ -560,31 +561,9 @@ class OSSimulatorWindow(QMainWindow):
         )
         button_layout.addWidget(self.btn_new_process)
 
-        self.btn_kill_process = QPushButton("Matar Proceso")
-        self.btn_kill_process.clicked.connect(self.matar_proceso)
-        self.btn_kill_process.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #B91C1C;
-                color: white;
-                border-radius: 6px;
-                padding: 8px 15px;
-                font-weight: bold;
-                border: 1px solid #EF4444;
-            }
+        # Se eliminó el botón rojo global "btn_kill_process" de aquí para limpiar la UI
 
-            QPushButton:hover {
-                background-color: #DC2626;
-            }
-
-            QPushButton:disabled {
-                background-color: #374151;
-                color: #9CA3AF;
-                border: 1px solid #4B5563;
-            }
-            """
-        )
-        button_layout.addWidget(self.btn_kill_process)
+        button_layout.addStretch()
 
         lbl_alg = QLabel("Algoritmo:")
         lbl_alg.setStyleSheet("font-weight: bold; color: #94A3B8; margin-left: 15px;")
@@ -596,8 +575,6 @@ class OSSimulatorWindow(QMainWindow):
         self.combo_algoritmo.setCurrentText(self.kernel.algoritmo_planificacion)
         self.combo_algoritmo.currentTextChanged.connect(self.al_cambiar_algoritmo)
         button_layout.addWidget(self.combo_algoritmo)
-
-        button_layout.addStretch()
 
         process_frame.layout.addLayout(button_layout)
         layout.addWidget(process_frame)
@@ -829,7 +806,6 @@ class OSSimulatorWindow(QMainWindow):
         es_activo = self.kernel.esta_ejecutando()
 
         self.btn_new_process.setEnabled(es_activo)
-        self.btn_kill_process.setEnabled(es_activo)
         self.btn_clock1.setEnabled(es_activo)
         self.btn_clock10.setEnabled(es_activo)
         self.btn_clock60.setEnabled(es_activo)
@@ -902,10 +878,14 @@ class OSSimulatorWindow(QMainWindow):
 
     def actualizar_procesos(self):
         self.process_table.setRowCount(0)
+        es_activo = self.kernel.esta_ejecutando()
+
         for proceso in self.kernel.procesos:
             row = self.process_table.rowCount()
             self.process_table.insertRow(row)
             datos = proceso.obtener_datos_tabla()
+            
+            # Insertar los primeros 7 datos en las columnas correspondientes
             for column, value in enumerate(datos):
                 item = QTableWidgetItem(str(value))
                 
@@ -917,6 +897,36 @@ class OSSimulatorWindow(QMainWindow):
                     item.setFont(font)
                 
                 self.process_table.setItem(row, column, item)
+
+            # Insertar el botón de Eliminar en la columna 8 (índice 7)
+            btn_eliminar = QPushButton("Eliminar")
+            
+            # Desactivar el botón si el kernel está apagado o si es el proceso init (PID 1)
+            if not es_activo or proceso.pid == 1:
+                btn_eliminar.setEnabled(False)
+                
+            btn_eliminar.setStyleSheet("""
+                QPushButton {
+                    background-color: #B91C1C;
+                    color: white;
+                    border-radius: 4px;
+                    padding: 4px 10px;
+                    font-weight: bold;
+                }
+                QPushButton:hover {
+                    background-color: #EF4444;
+                }
+                QPushButton:disabled {
+                    background-color: #374151;
+                    color: #6B7280;
+                }
+            """)
+            
+            pid_actual = proceso.pid
+            # Usar lambda para pasar el PID correcto al momento de hacer clic
+            btn_eliminar.clicked.connect(lambda checked, p=pid_actual: self.matar_proceso_por_pid(p))
+            
+            self.process_table.setCellWidget(row, 7, btn_eliminar)
 
     def actualizar_memoria(self):
         memoria = self.kernel.memoria
@@ -1074,34 +1084,12 @@ class OSSimulatorWindow(QMainWindow):
             "INFO", f"Nuevo proceso creado: {proceso.nombre} (PID {proceso.pid})"
         )
 
-    def matar_proceso(self):
+    # NUEVO MÉTODO REESCRITO: Mata el proceso específico mediante su PID
+    def matar_proceso_por_pid(self, pid):
         if not self.kernel.esta_ejecutando():
             self.os_log.addLogEntry(
                 "WARN", "El SO está detenido. No se pueden gestionar procesos."
             )
-            QMessageBox.warning(
-                self,
-                "Sistema Detenido",
-                "Debes iniciar el SO para eliminar o gestionar procesos.",
-            )
-            return
-
-        fila = self.process_table.currentRow()
-
-        if fila < 0:
-            QMessageBox.warning(
-                self, "Matar proceso", "Selecciona primero un proceso."
-            )
-            return
-
-        pid_item = self.process_table.item(fila, 0)
-        if pid_item is None:
-            return
-
-        try:
-            pid = int(pid_item.text())
-        except ValueError:
-            QMessageBox.warning(self, "Error", "El PID seleccionado no es válido.")
             return
 
         if pid == 1:
@@ -1173,18 +1161,10 @@ Sistema de archivos:
             "ERR", "Test: Fallo simulado en asignación de memoria."
         )
 
-    # -----------------------------------------------------
-    # MÉTODO NUEVO: ABRIR LA VENTANA DEL VISOR DE MEMORIA
-    # -----------------------------------------------------
-   # -----------------------------------------------------
-    # MÉTODO NUEVO: ABRIR LA VENTANA DEL VISOR DE MEMORIA
-    # -----------------------------------------------------
     def abrir_visor_memoria(self):
-        # Si la ventana no ha sido creada todavía, la creamos
         if not hasattr(self, 'visor_memoria'):
             self.visor_memoria = VisualizadorMemoria()
             
-        # Si la ventana está oculta o minimizada, la mostramos sin borrar datos
         if self.visor_memoria.isHidden():
             self.visor_memoria.show()
             
