@@ -193,7 +193,17 @@ class VisualizadorMemoria(QMainWindow):
         return tab
 
     def inicializar_mapa_bits(self):
-        self.unidad_actual = self.spin_unidad.value()
+        unidad = self.spin_unidad.value()
+        
+        # OBERVACIÓN CORREGIDA: Validar que la unidad sea potencia/múltiplo de base 2
+        # (Un número es potencia de 2 matemáticamente si (n & (n - 1)) == 0)
+        if (unidad & (unidad - 1)) != 0:
+            QMessageBox.warning(self, "Error de Validación", "La unidad de asignación del mapa de bits debe ser un número múltiplo de base 2 (ej. 2, 4, 8, 16, 32, 64...).")
+            # Restaurar a un valor válido por defecto para evitar errores
+            self.spin_unidad.setValue(8)
+            return
+
+        self.unidad_actual = unidad
         total_casillas = math.ceil(self.memoria_total / self.unidad_actual)
         self.mapa_arreglo = [0] * total_casillas
         self.pid_bits = 1

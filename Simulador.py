@@ -1,4 +1,10 @@
 import sys
+import time
+import ctypes
+import wmi
+import pythoncom
+import getpass
+from PyQt6.QtCore import Qt, QTimer, QSize, QThread, pyqtSignal
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
@@ -22,9 +28,11 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QComboBox,
+    QLineEdit,
+    QSpinBox,
+    QScrollArea,
 )
 
-from PyQt6.QtCore import Qt, QTimer, QSize
 from PyQt6.QtGui import (
     QIcon,
     QPalette,
@@ -33,9 +41,63 @@ from PyQt6.QtGui import (
 )
 
 from Kernel import Kernel
-
-# Importamos la nueva ventana de visualización de memoria
 from VisualizadorMemoria import VisualizadorMemoria
+
+
+# --- ESTRUCTURAS NATIVAS DE WINDOWS PARA VERIFICAR CONEXIÓN REAL BLUETOOTH ---
+class GUID(ctypes.Structure):
+    _fields_ = [
+        ("Data1", ctypes.c_ulong),
+        ("Data2", ctypes.c_ushort),
+        ("Data3", ctypes.c_ushort),
+        ("Data4", ctypes.c_ubyte * 8),
+    ]
+
+class DEVPROPKEY(ctypes.Structure):
+    _fields_ = [
+        ("fmtid", GUID),
+        ("pid", ctypes.c_ulong),
+    ]
+
+DEVPKEY_Device_IsConnected = DEVPROPKEY(
+    GUID(
+        0x83DA6326,
+        0x97A6,
+        0x4088,
+        (ctypes.c_ubyte * 8)(0x94, 0x53, 0xA1, 0x92, 0x3F, 0x57, 0x3B, 0x29),
+    ),
+    15,
+)
+
+
+def esta_bluetooth_conectado(device_id):
+    try:
+        cfgmgr32 = ctypes.windll.CfgMgr32
+        devinst = ctypes.c_ulong(0)
+        res = cfgmgr32.CM_Locate_DevNodeW(
+            ctypes.byref(devinst), ctypes.c_wchar_p(device_id), 0
+        )
+        if res != 0:
+            return False
+
+        proptype = ctypes.c_ulong(0)
+        val = ctypes.c_ubyte(0)
+        bufsize = ctypes.c_ulong(ctypes.sizeof(val))
+
+        res = cfgmgr32.CM_Get_DevNode_PropertyW(
+            devinst,
+            ctypes.byref(DEVPKEY_Device_IsConnected),
+            ctypes.byref(proptype),
+            ctypes.byref(val),
+            ctypes.byref(bufsize),
+            0,
+        )
+        if res == 0:
+            return bool(val.value)
+        return False
+    except Exception:
+        return False
+
 
 PANEL_STYLE = """
 QFrame {
@@ -262,6 +324,139 @@ class OSConsoleLog(QPlainTextEdit):
         self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())
 
 
+# HILO PARA ESCUCHAR PUERTOS FÍSICOS Y BLUETOOTH EN TIEMPO REAL
+class DetectorDispositivosThread(QThread):
+    dispositivo_detectado = pyqtSignal(str, str, str)
+    dispositivo_desconectado = pyqtSignal(str) 
+
+    def __init__(self):
+        super().__init__()
+        self.reiniciar_cache = False
+
+    def forzar_escaneo_inicial(self):
+        self.reiniciar_cache = True
+
+    def run(self):
+        pythoncom.CoInitialize()
+        c = wmi.WMI()
+        
+        dispositivos_conocidos = {}
+        
+        def es_valido(d):
+            try:
+                if not d.DeviceID or not d.Name: 
+                    return False
+                    
+                if d.ConfigManagerErrorCode != 0: 
+                    return False
+                
+                try:
+                    if hasattr(d, "Present") and getattr(d, "Present") is False:
+                        return False
+                except Exception:
+                    pass
+                
+                dev_id_upper = d.DeviceID.upper()
+                nombre_low = d.Name.lower()
+                
+                # LISTA NEGRA: Oculta componentes internos de la laptop y servicios virtuales
+                filtros_ignorados = [
+                    "concentrador", "root hub", "raíz", "host controller",
+                    "controlador", "básic", "basic", "display adapter",
+                    "realtek", "high definition audio", "conexant", "waves",
+                    "elan", "sensor", "fingerprint", "biometric", "touchpad", "synaptics",
+                    "servicio", "service", "serial", "transporte", "vínculo", 
+                    "avrcp", "a2dp", "enumerador", "periférico", "periferico", 
+                    "hands-free", "rfcomm", "sms/mms", "insecure", "personal area",
+                    "hid device", "bluetooth device", "le enumerator",
+                    "hp wide vision", "camera", "cámara", "webcam", 
+                    "integrated monitor", "monitor integrado",
+                    "vídeo", "video", "pci\\", "acpi\\",
+                    "dispositivo compuesto", "composite device",
+                    "volumen", "volume", "lyra", "intel(r) wireless bluetooth"
+                ]
+                
+                if any(f in nombre_low for f in filtros_ignorados):
+                    return False
+
+                # 1. VERIFICACIÓN ESPECIAL PARA BLUETOOTH (Solo nodos principales y conectados AHORA MISMO)
+                if dev_id_upper.startswith("BTHENUM\\") or dev_id_upper.startswith("BTHLE\\") or dev_id_upper.startswith("BTH\\"):
+                    if "DEV_" not in dev_id_upper:
+                        return False
+                    return esta_bluetooth_conectado(d.DeviceID)
+                    
+                # 2. BUSES FÍSICOS POR CABLE (USB, Memorias, Impresoras, HDMI/Display, Celulares MTP)
+                buses_activos = ["USB\\", "USBSTOR\\", "USBPRINT\\", "DISPLAY\\", "HDAUDIO\\", "SWD\\WPDBUSENUM", "HID\\"]
+                return any(bus in dev_id_upper for bus in buses_activos)
+            except Exception:
+                return False
+            
+        while True:
+            time.sleep(1)
+            
+            if self.reiniciar_cache:
+                dispositivos_conocidos.clear()
+                self.reiniciar_cache = False
+
+            try:
+                actuales = {}
+                for d in c.Win32_PnPEntity():
+                    if es_valido(d):
+                        actuales[d.DeviceID] = d
+
+                # Detección de Cable de Red físico / Adaptadores de Red activos
+                try:
+                    for net in c.Win32_NetworkAdapter(NetConnectionStatus=2):
+                        if net.Name and net.PNPDeviceID:
+                            net_low = net.Name.lower()
+                            if not any(w in net_low for w in ["wi-fi", "wifi", "wireless", "inalámbric", "bluetooth", "virtual", "wan", "loopback"]):
+                                actuales[net.PNPDeviceID] = net
+                except Exception:
+                    pass
+                        
+                # Revisar Conexiones Nuevas o Reiniciadas
+                for dev_id, dev in actuales.items():
+                    if dev_id not in dispositivos_conocidos:
+                        nombre = dev.Name
+                        mfg = getattr(dev, "Manufacturer", None)
+                        dev_id_upper = dev_id.upper()
+                        
+                        # Extractor de marcas para dispositivos genéricos USB/HID
+                        if mfg and not dev_id_upper.startswith("BTH"):
+                            mfg_ignorar = ["microsoft", "estándar", "standard", "genérico", "generic"]
+                            if not any(g in mfg.lower() for g in mfg_ignorar):
+                                if mfg.lower() not in nombre.lower():
+                                    nombre = f"{mfg} - {nombre}"
+                        
+                        driver = mfg or "Driver Genérico"
+                        
+                        tipo_conexion = "Físico (USB)"
+                        if dev_id_upper.startswith("BTH"):
+                            tipo_conexion = "Físico (Bluetooth)"
+                        elif "DISPLAY" in dev_id_upper or "HDAUDIO" in dev_id_upper:
+                            tipo_conexion = "Físico (HDMI/Display)"
+                        elif "WPDBUSENUM" in dev_id_upper:
+                            tipo_conexion = "Físico (Tipo C / MTP)"
+                        elif getattr(dev, "NetConnectionStatus", None) == 2:
+                            tipo_conexion = "Físico (Red / RJ45)"
+                            
+                        dispositivos_conocidos[dev_id] = nombre
+                        self.dispositivo_detectado.emit(nombre, tipo_conexion, driver)
+                        
+                # Revisar Desconexiones
+                borrados = []
+                for dev_id, nombre in dispositivos_conocidos.items():
+                    if dev_id not in actuales:
+                        self.dispositivo_desconectado.emit(nombre)
+                        borrados.append(dev_id)
+                        
+                for b in borrados:
+                    del dispositivos_conocidos[b]
+                    
+            except Exception:
+                pass
+
+
 class OSSimulatorWindow(QMainWindow):
 
     def __init__(self):
@@ -336,7 +531,6 @@ class OSSimulatorWindow(QMainWindow):
         self.setup_central_modules()
         self.setup_lower_section()
 
-        # Proporciones equilibradas y estables para evitar desplazamientos
         self.main_layout.setStretch(0, 0)
         self.main_layout.setStretch(1, 4)
         self.main_layout.setStretch(2, 2)
@@ -351,8 +545,12 @@ class OSSimulatorWindow(QMainWindow):
         self.os_log.addLogEntry("INFO", "CPU VM-CPU-01 creada.")
         self.os_log.addLogEntry("INFO", "Memoria RAM de 1024 MB disponible.")
         self.os_log.addLogEntry("INFO", "Dispositivos de E/S inicializados.")
-        self.os_log.addLogEntry("INFO", "Sistema de archivos montado.")
         self.os_log.addLogEntry("INFO", "Simulador listo.")
+        
+        self.hilo_detector = DetectorDispositivosThread()
+        self.hilo_detector.dispositivo_detectado.connect(self.registrar_dispositivo_fisico)
+        self.hilo_detector.dispositivo_desconectado.connect(self.eliminar_dispositivo_fisico)
+        self.hilo_detector.start()
 
     def setup_status_bar(self):
         status_frame = QFrame()
@@ -512,7 +710,6 @@ class OSSimulatorWindow(QMainWindow):
 
         process_frame = OSModuleFrame("Procesos Actuales", "task-due")
 
-        # Modificado: Se añade 1 columna extra ("Acción") en vez de 7 ahora son 8
         self.process_table = QTableWidget(0, 8)
         self.process_table.setEditTriggers(
             QTableWidget.EditTrigger.NoEditTriggers
@@ -560,8 +757,6 @@ class OSSimulatorWindow(QMainWindow):
             """
         )
         button_layout.addWidget(self.btn_new_process)
-
-        # Se eliminó el botón rojo global "btn_kill_process" de aquí para limpiar la UI
 
         button_layout.addStretch()
 
@@ -617,9 +812,7 @@ class OSSimulatorWindow(QMainWindow):
         self.memory_map = MemoryMapWidget()
         memory_frame.addWidget(self.memory_map)
 
-        # -----------------------------------------------------
-        # BOTÓN NUEVO: ABRIR VISOR AVANZADO DE MEMORIA
-        # -----------------------------------------------------
+        # BOTÓN: ABRIR VISOR AVANZADO DE MEMORIA
         self.btn_visor_memoria = QPushButton(" Abrir Visor Avanzado de Memoria")
         self.btn_visor_memoria.clicked.connect(self.abrir_visor_memoria)
         self.btn_visor_memoria.setStyleSheet(
@@ -639,7 +832,6 @@ class OSSimulatorWindow(QMainWindow):
             """
         )
         memory_frame.addWidget(self.btn_visor_memoria)
-        # -----------------------------------------------------
 
         layout.addWidget(memory_frame)
 
@@ -649,50 +841,80 @@ class OSSimulatorWindow(QMainWindow):
         io_tab = QWidget()
         layout = QVBoxLayout(io_tab)
         layout.setContentsMargins(0, 0, 0, 0)
+        
+        io_frame = OSModuleFrame("Dispositivos de Entrada/Salida", "media-mount")
 
-        io_frame = OSModuleFrame(
-            "Dispositivos de Entrada/Salida", "media-mount"
-        )
-
-        self.io_table = QTableWidget(0, 3)
-        self.io_table.setHorizontalHeaderLabels(["Dispositivo", "Estado", "Latencia"])
-        self.io_table.horizontalHeader().setSectionResizeMode(
-            QHeaderView.ResizeMode.Stretch
-        )
+        # Tabla extendida ocupando todo el panel
+        self.io_table = QTableWidget(0, 6)
+        self.io_table.setHorizontalHeaderLabels(["Dispositivo", "Tipo de Conexión", "Estado", "Driver / Info", "Latencia", "Acción"])
+        self.io_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.io_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.io_table.setStyleSheet(TABLE_STYLE)
-
+        
         io_frame.addWidget(self.io_table)
         layout.addWidget(io_frame)
-
+        
         return io_tab
+
+    def registrar_dispositivo_fisico(self, nombre, tipo, driver):
+        if not self.kernel.esta_ejecutando():
+            return
+            
+        for disp in self.kernel.dispositivos:
+            if disp.nombre == nombre:
+                return 
+                
+        self.kernel.conectar_dispositivo_io(nombre, tipo, driver)
+        self.actualizar_dispositivos()
+        self.os_log.addLogEntry("INFO", f"🔌 Hardware Físico Detectado: {nombre} [{tipo}]")
+
+    def eliminar_dispositivo_fisico(self, nombre):
+        if not self.kernel.esta_ejecutando():
+            return
+            
+        if self.kernel.desconectar_dispositivo_io(nombre):
+            self.actualizar_dispositivos()
+            self.os_log.addLogEntry("WARN", f"🔌 Hardware Físico Desconectado: {nombre}")
+
+    def evento_desconectar_io(self, nombre):
+        if self.kernel.desconectar_dispositivo_io(nombre):
+            self.actualizar_dispositivos()
+            self.os_log.addLogEntry("WARN", f"Dispositivo desconectado: {nombre}")
 
     def setup_fs_tab(self):
         fs_tab = QWidget()
         layout = QVBoxLayout(fs_tab)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        fs_frame = OSModuleFrame("Sistema de Archivos", "document-open")
-
-        self.fs_status_label = QLabel()
-        self.fs_status_label.setStyleSheet(
-            """
-            font-size: 14px;
-            font-weight: bold;
-            padding: 5px;
-            color: #22C55E;
-            """
-        )
-        fs_frame.addWidget(self.fs_status_label)
-
-        self.fs_tree = QTreeWidget()
-        self.fs_tree.setHeaderHidden(True)
-        self.fs_tree.setStyleSheet(TREE_STYLE)
-
-        fs_frame.addWidget(self.fs_tree)
-        layout.addWidget(fs_frame)
-
+        
+        frame = OSModuleFrame("Administración de Archivos (Avance 5)", "media-optical")
+        
+        lbl_info = QLabel("El módulo de Sistema de Archivos ha sido movido a su propia ventana dedicada para optimizar el Kernel y organizar el Avance 5 (Asignación Continua, Lista Ligada e I-Nodos).")
+        lbl_info.setStyleSheet("font-size: 14px; color: #9CA3AF; margin: 20px;")
+        lbl_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_info.setWordWrap(True)
+        frame.addWidget(lbl_info)
+        
+        self.btn_abrir_archivos = QPushButton(" 📁 Abrir Gestor de Archivos (Avance 5)")
+        self.btn_abrir_archivos.setFixedHeight(50)
+        self.btn_abrir_archivos.setStyleSheet("""
+            QPushButton { background-color: #2563EB; color: white; border-radius: 8px; font-weight: bold; font-size: 15px; border: 1px solid #3B82F6; }
+            QPushButton:hover { background-color: #3B82F6; }
+        """)
+        self.btn_abrir_archivos.clicked.connect(self.abrir_visor_archivos)
+        
+        frame.addWidget(self.btn_abrir_archivos)
+        layout.addWidget(frame)
         return fs_tab
+        
+    def abrir_visor_archivos(self):
+        if not hasattr(self, 'visor_archivos'):
+            from GestorArchivos import GestorArchivosWindow
+            self.visor_archivos = GestorArchivosWindow()
+            
+        if self.visor_archivos.isHidden():
+            self.visor_archivos.show()
+            
+        self.visor_archivos.raise_()
+        self.visor_archivos.activateWindow()
 
     def setup_lower_section(self):
         lower_layout = QHBoxLayout()
@@ -797,7 +1019,6 @@ class OSSimulatorWindow(QMainWindow):
         self.actualizar_procesos()
         self.actualizar_memoria()
         self.actualizar_dispositivos()
-        self.actualizar_sistema_archivos()
 
     def actualizar_estado_kernel(self):
         estado = self.kernel.estado_kernel
@@ -877,6 +1098,8 @@ class OSSimulatorWindow(QMainWindow):
         self.load_label.setText(f"Overall System Load: {cpu.carga_general}%")
 
     def actualizar_procesos(self):
+        scroll_pos = self.process_table.verticalScrollBar().value()
+
         self.process_table.setRowCount(0)
         es_activo = self.kernel.esta_ejecutando()
 
@@ -885,7 +1108,6 @@ class OSSimulatorWindow(QMainWindow):
             self.process_table.insertRow(row)
             datos = proceso.obtener_datos_tabla()
             
-            # Insertar los primeros 7 datos en las columnas correspondientes
             for column, value in enumerate(datos):
                 item = QTableWidgetItem(str(value))
                 
@@ -898,10 +1120,8 @@ class OSSimulatorWindow(QMainWindow):
                 
                 self.process_table.setItem(row, column, item)
 
-            # Insertar el botón de Eliminar en la columna 8 (índice 7)
             btn_eliminar = QPushButton("Eliminar")
             
-            # Desactivar el botón si el kernel está apagado o si es el proceso init (PID 1)
             if not es_activo or proceso.pid == 1:
                 btn_eliminar.setEnabled(False)
                 
@@ -923,10 +1143,10 @@ class OSSimulatorWindow(QMainWindow):
             """)
             
             pid_actual = proceso.pid
-            # Usar lambda para pasar el PID correcto al momento de hacer clic
             btn_eliminar.clicked.connect(lambda checked, p=pid_actual: self.matar_proceso_por_pid(p))
-            
             self.process_table.setCellWidget(row, 7, btn_eliminar)
+
+        self.process_table.verticalScrollBar().setValue(scroll_pos)
 
     def actualizar_memoria(self):
         memoria = self.kernel.memoria
@@ -949,64 +1169,46 @@ class OSSimulatorWindow(QMainWindow):
         self.memory_map.update_memory(porcentaje)
 
     def actualizar_dispositivos(self):
+        scroll_pos = self.io_table.verticalScrollBar().value()
+
         self.io_table.setRowCount(0)
+        es_activo = self.kernel.esta_ejecutando()
+        
         for dispositivo in self.kernel.dispositivos:
             row = self.io_table.rowCount()
             self.io_table.insertRow(row)
-            datos = [dispositivo.nombre, dispositivo.estado, dispositivo.latencia]
+            datos = [
+                dispositivo.nombre, 
+                dispositivo.tipo_conexion, 
+                dispositivo.estado, 
+                dispositivo.driver_info, 
+                dispositivo.latencia
+            ]
+            
             for column, value in enumerate(datos):
                 item = QTableWidgetItem(str(value))
+                if "CONECTADO" in dispositivo.estado:
+                    item.setForeground(QColor("#10B981"))
                 self.io_table.setItem(row, column, item)
+            
+            if "Integrado" in dispositivo.tipo_conexion:
+                btn_desconectar = QPushButton("Integrado")
+                btn_desconectar.setEnabled(False)
+                btn_desconectar.setStyleSheet("background-color: #374151; color: #9CA3AF; border-radius: 4px; padding: 4px;")
+            else:
+                btn_desconectar = QPushButton("Desconectar")
+                if not es_activo: btn_desconectar.setEnabled(False)
+                btn_desconectar.setStyleSheet("""
+                    QPushButton { background-color: #B91C1C; color: white; border-radius: 4px; padding: 4px; font-weight: bold; }
+                    QPushButton:hover { background-color: #EF4444; }
+                    QPushButton:disabled { background-color: #374151; color: #6B7280; }
+                """)
+                nombre_disp = dispositivo.nombre
+                btn_desconectar.clicked.connect(lambda checked, n=nombre_disp: self.evento_desconectar_io(n))
+                
+            self.io_table.setCellWidget(row, 5, btn_desconectar)
 
-    def actualizar_sistema_archivos(self):
-        fs = self.kernel.sistema_archivos
-        self.fs_tree.clear()
-
-        if fs.montado:
-            self.fs_status_label.setText("Estado: MONTADO")
-            self.fs_status_label.setStyleSheet(
-                """
-                font-size: 14px;
-                font-weight: bold;
-                padding: 5px;
-                color: #22C55E;
-                """
-            )
-        else:
-            self.fs_status_label.setText("Estado: DESMONTADO")
-            self.fs_status_label.setStyleSheet(
-                """
-                font-size: 14px;
-                font-weight: bold;
-                padding: 5px;
-                color: #EF4444;
-                """
-            )
-
-        root = QTreeWidgetItem(self.fs_tree, ["/"])
-
-        for directory in fs.directorios.get("/", []):
-            dir_item = QTreeWidgetItem(root, [directory])
-            full_path = "/" + directory
-            self.crear_arbol_directorio(dir_item, full_path, fs)
-
-        for ruta in fs.archivos:
-            if ruta.count("/") == 1:
-                QTreeWidgetItem(root, [ruta])
-
-        self.fs_tree.expandAll()
-
-    def crear_arbol_directorio(self, parent_item, path, fs):
-        for directory in fs.directorios.get(path, []):
-            child = QTreeWidgetItem(parent_item, [directory])
-            child_path = path.rstrip("/") + "/" + directory
-            self.crear_arbol_directorio(child, child_path, fs)
-
-        for file_path in fs.archivos:
-            parent_path = file_path.rsplit("/", 1)[0]
-            if parent_path == path:
-                filename = file_path.rsplit("/", 1)[1]
-                QTreeWidgetItem(parent_item, ["📄 " + filename])
+        self.io_table.verticalScrollBar().setValue(scroll_pos)
 
     def update_sim_data(self):
         if not self.kernel.esta_ejecutando():
@@ -1015,7 +1217,12 @@ class OSSimulatorWindow(QMainWindow):
 
         self.kernel.avanzar_reloj(1)
         self.kernel.actualizar_procesos()
-        self.actualizar_interfaz_completa()
+
+        self.actualizar_estado_kernel()
+        self.actualizar_reloj()
+        self.actualizar_cpu()
+        self.actualizar_procesos()
+        self.actualizar_memoria()
 
         if self.kernel.system_time_counter % 5 == 0:
             self.os_log.addLogEntry(
@@ -1033,6 +1240,7 @@ class OSSimulatorWindow(QMainWindow):
         self.kernel.iniciar()
         self.actualizar_interfaz_completa()
         self.os_log.addLogEntry("INFO", "Sistema operativo iniciado correctamente.")
+        self.hilo_detector.forzar_escaneo_inicial()
 
     def detener_so(self):
         if not self.kernel.esta_ejecutando():
@@ -1084,7 +1292,6 @@ class OSSimulatorWindow(QMainWindow):
             "INFO", f"Nuevo proceso creado: {proceso.nombre} (PID {proceso.pid})"
         )
 
-    # NUEVO MÉTODO REESCRITO: Mata el proceso específico mediante su PID
     def matar_proceso_por_pid(self, pid):
         if not self.kernel.esta_ejecutando():
             self.os_log.addLogEntry(
@@ -1169,7 +1376,7 @@ Sistema de archivos:
             self.visor_memoria.show()
             
         self.visor_memoria.raise_()
-        self.visor_memoria.activateWindow()
+        self.visor_memoria.activateWindow() 
 
 
 if __name__ == "__main__":

@@ -4,13 +4,13 @@ class Proceso:
     def __init__(self, pid, nombre, prioridad, memoria, tiempo_ejecucion):
         self.pid = pid
         self.nombre = nombre
-        self.estado = "Ready"  # Ready, Running, Terminated
+        self.estado = "Ready"  
         self.prioridad = prioridad
         self.cpu_pct = round(random.uniform(0.5, 12.0), 1)
         self.memory_pct = memoria
         self.tiempo_restante = tiempo_ejecucion
         self.tiempo_total = tiempo_ejecucion
-        self.llegada = 0  # Momento exacto de ingreso al sistema
+        self.llegada = 0  
 
     def obtener_datos_tabla(self):
         return [
@@ -45,11 +45,14 @@ class Memoria:
         return self.capacidad_total_mb - self.memoria_usada_mb
 
 
+# Modificado para Avance 4: Soporte de Tipo de conexión y Driver
 class DispositivoIO:
-    def __init__(self, nombre, estado, latencia):
+    def __init__(self, nombre, tipo_conexion, estado, latencia, driver_info):
         self.nombre = nombre
+        self.tipo_conexion = tipo_conexion
         self.estado = estado
         self.latencia = latencia
+        self.driver_info = driver_info
 
 
 class SistemaArchivos:
@@ -66,7 +69,6 @@ class Kernel:
         self.estado_kernel = "STOPPED"
         self.system_time_counter = 0
 
-        # Lista de los 7 algoritmos de planificación soportados
         self.ALGORITMOS_DISPONIBLES = [
             "FCFS",
             "SJF",
@@ -85,10 +87,11 @@ class Kernel:
         self.memoria = Memoria()
         self.sistema_archivos = SistemaArchivos()
 
+        # Dispositivos base integrados (Avance 4)
         self.dispositivos = [
-            DispositivoIO("Disco Principal", "ACTIVO", "5ms"),
-            DispositivoIO("Teclado/Mouse", "LISTO", "1ms"),
-            DispositivoIO("Tarjeta de Red", "ACTIVO", "12ms")
+            DispositivoIO("Disco NVMe Principal", "PCIe Integrado", "ACTIVO", "1ms", "nvme_core_v1.4"),
+            DispositivoIO("Teclado del Portátil", "PS/2 Integrado", "LISTO", "2ms", "i8042_kbd"),
+            DispositivoIO("Pantalla del Sistema", "eDP Integrado", "ACTIVO", "5ms", "intel_fb_v9")
         ]
 
         self.procesos = []
@@ -111,13 +114,15 @@ class Kernel:
         self._inicializar_procesos_base()
         self.cpu.proceso_actual = None
         self.cpu.ocupado = False
+        
+        # Limpiar dispositivos externos al reiniciar
+        self.dispositivos = [d for d in self.dispositivos if "Integrado" in d.tipo_conexion]
         self.iniciar()
 
     def esta_ejecutando(self):
         return self.estado_kernel == "RUNNING"
 
     def cambiar_algoritmo(self, nuevo_algoritmo):
-        """Método invocado por la interfaz gráfica al cambiar de opción en la lista/botón."""
         if nuevo_algoritmo in self.ALGORITMOS_DISPONIBLES:
             self.algoritmo_planificacion = nuevo_algoritmo
             self.quantum_actual = 0
@@ -150,6 +155,21 @@ class Kernel:
             return True
         return False
 
+    # --- NUEVOS MÉTODOS PARA EL AVANCE 4 ---
+    def conectar_dispositivo_io(self, nombre, tipo_conexion, driver_info):
+        latencia = f"{random.randint(5, 40)}ms"
+        nuevo = DispositivoIO(nombre, tipo_conexion, "CONECTADO", latencia, driver_info)
+        self.dispositivos.append(nuevo)
+        return nuevo
+
+    def desconectar_dispositivo_io(self, nombre):
+        for d in self.dispositivos:
+            if d.nombre == nombre:
+                self.dispositivos.remove(d)
+                return True
+        return False
+    # ---------------------------------------
+
     def avanzar_reloj(self, segundos):
         if not self.esta_ejecutando():
             return
@@ -158,7 +178,6 @@ class Kernel:
             self.system_time_counter += 1
             self.quantum_actual += 1
 
-            # Descuenta tiempo al proceso actual en ejecucion
             if self.cpu.proceso_actual:
                 self.cpu.proceso_actual.tiempo_restante -= 1
 
@@ -175,7 +194,6 @@ class Kernel:
         if not self.esta_ejecutando():
             return
 
-        # Evaluación según el algoritmo seleccionado en la interfaz
         if self.algoritmo_planificacion == "FCFS":
             self._planificar_fcfs()
         elif self.algoritmo_planificacion == "SJF":
@@ -245,12 +263,10 @@ class Kernel:
             self.cpu.ocupado = True
 
     def _planificar_colas_multiples(self):
-        # Colas múltiples: Separa los procesos por su nivel de prioridad asignado
         if self.cpu.proceso_actual is not None:
             return
         listos = [p for p in self.procesos if p.estado == "Ready"]
         if listos:
-            # Atiende primero las colas con menor valor numérico de prioridad, respetando FIFO (llegada)
             listos.sort(key=lambda p: (p.prioridad, p.llegada))
             siguiente = listos[0]
             siguiente.estado = "Running"
@@ -258,12 +274,10 @@ class Kernel:
             self.cpu.ocupado = True
 
     def _planificar_garantizada(self):
-        # Planificación garantizada: Busca el equilibrio calculando la proporción de tiempo de CPU recibido
         if self.cpu.proceso_actual is not None:
             return
         listos = [p for p in self.procesos if p.estado == "Ready"]
         if listos:
-            # Da prioridad al proceso que tenga menor tiempo ejecutado en proporción a su necesidad
             listos.sort(key=lambda p: (p.tiempo_total - p.tiempo_restante))
             siguiente = listos[0]
             siguiente.estado = "Running"
@@ -271,18 +285,15 @@ class Kernel:
             self.cpu.ocupado = True
 
     def _planificar_dos_niveles(self):
-        # Planificación a dos niveles: Cola del sistema (prioridad alta <= 10) y cola de usuario
         if self.cpu.proceso_actual is not None:
             return
         listos = [p for p in self.procesos if p.estado == "Ready"]
         if listos:
-            # Prioridad absoluta a procesos del sistema o nivel alto
             sistema = [p for p in listos if p.prioridad <= 10]
             if sistema:
                 sistema.sort(key=lambda p: p.llegada)
                 siguiente = sistema[0]
             else:
-                # Si no hay del sistema, pasa a los de usuario por orden de llegada
                 listos.sort(key=lambda p: p.llegada)
                 siguiente = listos[0]
 
